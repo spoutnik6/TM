@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Turing Machine — Web Edition</title>
+<meta name="description" content="Générateur d'énigmes de déduction logique inspiré du jeu Turing Machine, jouable hors-ligne et installable sur mobile." />
+<meta name="theme-color" content="#0a0e14" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Turing Machine" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="splash-screen" class="splash-screen">
+  <img src="assets/brand/turing-splash.webp" class="splash-logo" alt="Turing Machine — The Punch-Card Computer" />
+</div>
+
+<header class="app-header">
+  <button id="btn-menu" class="menu-btn" aria-label="Ouvrir le menu">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="header-brand">
+    <img src="assets/brand/logo-tm.png" class="header-logo" alt="Turing Machine" />
+  </div>
+  <button id="puzzle-code" class="puzzle-code" title="Cliquer pour copier le code de cette énigme">…</button>
+</header>
+<span id="copy-confirm" class="copy-confirm hidden">Code copié !</span>
+
+<nav id="side-menu" class="side-menu hidden" aria-hidden="true">
+  <button id="menu-new-game" class="side-menu__item">🧩 Nouvelle énigme</button>
+  <button id="menu-notes" class="side-menu__item">📝 Bloc-notes</button>
+  <button id="menu-give-up" class="side-menu__item">🏳️ Voir la solution</button>
+  <button id="menu-help" class="side-menu__item">❓ Aide</button>
+</nav>
+<div id="overlay-backdrop" class="backdrop hidden"></div>
+
+<main>
+  <div class="game-layout">
+
+    <section id="proposal-section" class="game-area game-area--proposal">
+      <div class="proposal-row">
+        <div class="value-picker">
+          <span class="shape shape--b shape--lg"></span>
+          <select id="select-b" class="value-select value-select--b">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="value-picker">
+          <span class="shape shape--y shape--lg"></span>
+          <select id="select-y" class="value-select value-select--y">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+        <div class="value-picker">
+          <span class="shape shape--p shape--lg"></span>
+          <select id="select-p" class="value-select value-select--p">
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn" id="btn-submit-guess">Soumettre le code final</button>
+      </div>
+      <div id="solved-banner" class="solved-banner hidden"></div>
+    </section>
+
+    <section id="history-section" class="game-area game-area--history">
+      <div class="history-header">
+        <h2>Suivi de déduction</h2>
+        <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
+      </div>
+      <div id="history-list"></div>
+      <div id="assist-box" class="hidden"></div>
+    </section>
+
+    <section id="cards-section" class="game-area game-area--cards">
+      <h2>Cartes de vérification actives</h2>
+      <div id="cards-grid"></div>
+    </section>
+
+    <aside id="notes-panel" class="notes-panel game-area--notes hidden" aria-hidden="true">
+      <button class="notes-panel__close" data-close="notes-panel" aria-label="Fermer">✕</button>
+      <h2>Bloc-notes</h2>
+      <p class="muted notes-panel__hint">Élimine ou valide les chiffres possibles pour chaque couleur, au fil de tes déductions.</p>
+      <div id="notes-grid" class="notes-grid"></div>
+    </aside>
+
+  </div>
+</main>
+
+<footer>
+  Application non-officielle réalisée pour un usage strictement personnel, à partir des cartes
+  de vérification du jeu de plateau « Turing Machine » (Fabien Riffaud, Juliette Saudemont —
+  Le Scorpion Masqué). Tous droits sur le jeu original réservés à leurs propriétaires respectifs.
+</footer>
+
+<!-- Popin : Nouvelle énigme -->
+<div id="modal-newgame" class="modal modal--fullpage hidden" role="dialog" aria-modal="true">
+  <div class="modal__content">
+    <button class="modal__close" data-close="modal-newgame" aria-label="Fermer">✕</button>
+    <h2>Nouvelle énigme</h2>
+
+    <h3>Générer une énigme aléatoire</h3>
+
+    <p class="muted">Difficulté (numéros de cartes autorisés).</p>
+    <div id="difficulty-picker"></div>
+
+    <p class="muted" style="margin-top:14px;">Durée (nombre de cartes actives).</p>
+    <div id="duration-picker"></div>
+
+    <label class="assist-toggle">
+      <input type="checkbox" id="chk-assist" /> Mode assisté (afficher le nombre de codes restants)
+    </label>
+    <div class="actions-row">
+      <button class="btn" id="btn-generate-random">🔄 Générer une énigme aléatoire</button>
+    </div>
+
+    <hr class="modal__sep" />
+
+    <h3>Charger une énigme existante</h3>
+    <p class="muted">Entre le code d'une énigme partagée pour la rejouer à l'identique.</p>
+    <div class="load-code-row">
+      <input type="text" id="input-load-code" class="load-code-input" placeholder="ex. S5-0A1B2C3" autocapitalize="characters" />
+      <button class="btn btn--secondary" id="btn-load-code">Charger</button>
+    </div>
+    <p id="load-code-error" class="error hidden"></p>
+  </div>
+</div>
+
+<!-- Popin : Aide -->
+<div id="modal-help" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal__content">
+    <button class="modal__close" data-close="modal-help" aria-label="Fermer">✕</button>
+    <h2>Aide</h2>
+    <h3>Le principe</h3>
+    <p>Un code secret est composé de 3 valeurs de 1 à 5 : Bleu (triangle), Jaune (carré) et Violet (cercle).
+    Un jeu de cartes de vérification est tiré au sort pour chaque énigme. Chaque carte affichée propose
+    plusieurs critères possibles (les alternatives imprimées dessus) ; comme sur la carte physique, le
+    curseur est toujours positionné sur le critère qui est <strong>vrai</strong> pour le code secret de cette
+    énigme (jamais un critère faux).</p>
+    <h3>Comment jouer</h3>
+    <p>Chaque carte active est identifiée par une lettre (A à F selon le nombre de cartes en jeu). Choisis un
+    code avec les 3 sélecteurs, puis clique sur "Tester" sous une carte : comme son critère actif est toujours
+    vrai pour le code secret, un ✅ signifie que ton code reste compatible avec le secret, et un ❌ l'élimine
+    directement. Clique sur le "?" à côté d'une carte pour révéler son critère actif. Un même code peut être
+    testé sur plusieurs cartes (jusqu'à 3 maximum) ; une fois une carte testée pour ce code, son bouton
+    "Tester" se grise jusqu'à ce que tu choisisses un nouveau code. Quand tu es sûr du code secret, clique sur
+    "Soumettre le code final".</p>
+    <h3>Le suivi de déduction</h3>
+    <p>Chaque ligne du tableau correspond à un code testé : les colonnes reprennent la lettre de chaque carte
+    en jeu (✅/❌ selon le résultat obtenu), et la colonne 💡 trace tes soumissions de réponse finale (✅ en cas
+    de succès, ❌ sinon).</p>
+    <h3>Le bloc-notes</h3>
+    <p>Accessible depuis le menu, il propose une grille de chiffres pour chaque couleur : clique sur un
+    chiffre pour le barrer (éliminé) une première fois, l'entourer (validé) une deuxième fois, puis revenir à
+    l'état neutre. C'est un simple aide-mémoire personnel, il n'influence pas le jeu.</p>
+    <h3>Le code d'énigme</h3>
+    <p>Chaque énigme a un code alphanumérique unique, affiché en haut de l'écran. Clique dessus pour le
+    copier, puis partage-le à quelqu'un d'autre (ou note-le) pour qu'il puisse charger exactement la même
+    énigme via le menu "Nouvelle énigme" → "Charger une énigme existante".</p>
+    <h3>Difficulté et durée</h3>
+    <p>Deux réglages indépendants permettent de personnaliser une énigme générée aléatoirement. La
+    <strong>difficulté</strong> (Facile / Standard / Expert) limite les numéros de cartes pouvant être
+    tirées au sort : Facile n'utilise que les cartes numérotées jusqu'à 20, Standard jusqu'à 33, et Expert
+    autorise les 48 cartes. La <strong>durée</strong> (Express / Court / Normal / Long) fixe le nombre de
+    cartes actives dans l'énigme, de 3 à 6. Quels que soient ces réglages, l'énigme garantit toujours une
+    solution unique parmi les 125 codes possibles, et aucune carte n'est superflue.</p>
+  </div>
+</div>
+
+<!-- Popin : résultat d'un test (se ferme au clic) -->
+<div id="modal-test-result" class="test-modal hidden">
+  <div class="test-modal__card" id="test-result-content"></div>
+</div>
+
+<script src="cards.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
