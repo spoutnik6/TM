@@ -71,7 +71,7 @@ header.app-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 8px 8px;
   border-bottom: 2px dashed rgba(50, 182, 98, 0.35);
 }
 
@@ -190,57 +190,62 @@ header.app-header {
 main {
   max-width: 720px;
   margin: 0 auto;
-  padding: 14px;
+  padding: 4px;
 }
 
 .game-layout {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    "proposal"
-    "history"
+    "left"
     "cards";
 }
 
-.game-area--proposal { grid-area: proposal; }
-.game-area--history { grid-area: history; }
-.game-area--cards { grid-area: cards; }
+.game-area--left { grid-area: left; min-width: 0; }
+.game-area--cards { grid-area: cards; min-width: 0; }
 
-/* -------------------- Rendu desktop : trois colonnes plein-largeur -------------------- */
-@media (min-width: 980px) {
-  main {
-    max-width: 1600px;
-  }
-  .game-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px) minmax(210px, 270px);
-    grid-template-areas:
-      "proposal history notes"
-      "cards    history notes";
-    align-items: start;
-    gap: 18px;
-  }
-  .game-area--history {
-    position: sticky;
-    top: 14px;
-    max-height: calc(100vh - 28px);
-    overflow-y: auto;
-  }
-}
-
-@media (min-width: 1300px) {
-  .game-area--cards #cards-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* -------------------- Rendu mobile : code proposé toujours visible -------------------- */
-@media (max-width: 979px) {
+/* Mobile portrait : le code proposé reste toujours visible, seul le reste
+   (suivi + cartes) défile en dessous. */
+@media (max-width: 679px) {
   #proposal-section {
     position: sticky;
     top: 0;
     z-index: 40;
     box-shadow: 0 10px 14px -10px rgba(0,0,0,0.6);
+  }
+}
+
+/* -------------------- Rendu paysage mobile + desktop : code & suivi à
+   gauche (colonne collante), cartes à droite (2 par ligne) -------------------- */
+@media (min-width: 680px) {
+  main {
+    max-width: 1600px;
+  }
+  .game-layout {
+    display: grid;
+    grid-template-columns: minmax(270px, 420px) minmax(0, 1fr);
+    grid-template-areas: "left cards";
+    align-items: start;
+    gap: 12px;
+  }
+  #proposal-section {
+    position: static;
+    box-shadow: none;
+  }
+  .game-area--left {
+    position: sticky;
+    top: 10px;
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+  }
+}
+
+/* -------------------- Rendu desktop large : bloc-notes en 3e colonne -------------------- */
+@media (min-width: 980px) {
+  .game-layout {
+    grid-template-columns: minmax(270px, 420px) minmax(0, 1fr) minmax(200px, 260px);
+    grid-template-areas: "left cards notes";
+    gap: 14px;
   }
 }
 
@@ -256,7 +261,7 @@ main {
   background: var(--panel);
   border-left: 1px solid rgba(255,255,255,0.1);
   z-index: 60;
-  padding: 64px 16px 16px;
+  padding: 60px 10px 10px;
   overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.2s ease;
@@ -287,10 +292,6 @@ main {
   color: var(--accent-2);
 }
 
-.notes-panel__hint {
-  margin: 0 0 14px;
-}
-
 @media (min-width: 980px) {
   .notes-panel {
     grid-area: notes;
@@ -304,7 +305,7 @@ main {
     background: var(--panel);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius);
-    padding: 14px;
+    padding: 10px;
     z-index: auto;
     transform: none;
   }
@@ -338,6 +339,7 @@ main {
 
 .notes-cell {
   position: relative;
+  aspect-ratio: 1;
   background: var(--panel-2);
   border: none;
   border-radius: 8px;
@@ -345,7 +347,10 @@ main {
   font-family: var(--font-game);
   font-weight: 700;
   font-size: 1.1rem;
-  padding: 8px 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   text-align: center;
 }
@@ -375,8 +380,8 @@ section {
   background: var(--panel);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: var(--radius);
-  padding: 14px;
-  margin-bottom: 14px;
+  padding: 10px;
+  margin-bottom: 10px;
 }
 
 section h2 {
@@ -551,18 +556,14 @@ section h2 {
 
 #cards-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-@media (min-width: 560px) {
-  #cards-grid { grid-template-columns: 1fr 1fr; }
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
 }
 
 .card {
   background: var(--panel-2);
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
@@ -793,7 +794,7 @@ footer {
   text-align: center;
   color: var(--muted);
   font-size: 0.72rem;
-  padding: 10px 16px 30px;
+  padding: 10px 8px 30px;
   max-width: 720px;
   margin: 0 auto;
 }

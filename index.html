@@ -45,41 +45,45 @@
 <main>
   <div class="game-layout">
 
-    <section id="proposal-section" class="game-area game-area--proposal">
-      <div class="proposal-row">
-        <div class="value-picker">
-          <span class="shape shape--b shape--lg"></span>
-          <select id="select-b" class="value-select value-select--b">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-          </select>
-        </div>
-        <div class="value-picker">
-          <span class="shape shape--y shape--lg"></span>
-          <select id="select-y" class="value-select value-select--y">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-          </select>
-        </div>
-        <div class="value-picker">
-          <span class="shape shape--p shape--lg"></span>
-          <select id="select-p" class="value-select value-select--p">
-            <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
-          </select>
-        </div>
-      </div>
-      <div class="actions-row">
-        <button class="btn" id="btn-submit-guess">Soumettre le code final</button>
-      </div>
-      <div id="solved-banner" class="solved-banner hidden"></div>
-    </section>
+    <div class="game-area game-area--left">
 
-    <section id="history-section" class="game-area game-area--history">
-      <div class="history-header">
-        <h2>Suivi de déduction</h2>
-        <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
-      </div>
-      <div id="history-list"></div>
-      <div id="assist-box" class="hidden"></div>
-    </section>
+      <section id="proposal-section">
+        <div class="proposal-row">
+          <div class="value-picker">
+            <span class="shape shape--b shape--lg"></span>
+            <select id="select-b" class="value-select value-select--b">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+          </div>
+          <div class="value-picker">
+            <span class="shape shape--y shape--lg"></span>
+            <select id="select-y" class="value-select value-select--y">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+          </div>
+          <div class="value-picker">
+            <span class="shape shape--p shape--lg"></span>
+            <select id="select-p" class="value-select value-select--p">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions-row">
+          <button class="btn" id="btn-submit-guess">Soumettre le code final</button>
+        </div>
+        <div id="solved-banner" class="solved-banner hidden"></div>
+      </section>
+
+      <section id="history-section">
+        <div class="history-header">
+          <h2>Suivi de déduction</h2>
+          <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
+        </div>
+        <div id="history-list"></div>
+        <div id="assist-box" class="hidden"></div>
+      </section>
+
+    </div>
 
     <section id="cards-section" class="game-area game-area--cards">
       <h2>Cartes de vérification actives</h2>
@@ -89,7 +93,6 @@
     <aside id="notes-panel" class="notes-panel game-area--notes hidden" aria-hidden="true">
       <button class="notes-panel__close" data-close="notes-panel" aria-label="Fermer">✕</button>
       <h2>Bloc-notes</h2>
-      <p class="muted notes-panel__hint">Élimine ou valide les chiffres possibles pour chaque couleur, au fil de tes déductions.</p>
       <div id="notes-grid" class="notes-grid"></div>
     </aside>
 

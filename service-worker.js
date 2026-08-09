@@ -1,7 +1,7 @@
 // Service worker : mise en cache de l'app shell pour un fonctionnement
 // hors-ligne complet, indispensable pour l'installation en PWA sur Android.
 
-const CACHE_NAME = "turing-machine-web-v9";
+const CACHE_NAME = "turing-machine-web-v10";
 const CARD_IMAGES = Array.from({ length: 48 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0");
   return `./assets/cards/TM_GameCards_FR-${n}.webp`;
