@@ -305,14 +305,13 @@
         <div class="card__img-wrap">
           <img class="card__img" src="assets/cards/${ac.family.image}.webp" alt="Carte de vérification ${ac.letter}" loading="lazy" />
         </div>
-        <div class="card__active ${revealed ? "" : "hidden"}" data-active-id="${ac.family.id}">
+        <div class="card__active ${revealed ? "" : "hidden"}">
           <span class="card__active-label">Segment actif pour cette énigme</span>
           <strong>${ac.variant.label}</strong>
         </div>
         <button class="card__test-btn" data-letter="${ac.letter}">
           <span class="card__test-btn__badges">
             <span class="card__letter">${ac.letter}</span>
-            <span class="card__number">${ac.family.id}</span>
           </span>
           <span class="card__test-btn__label">Tester</span>
         </button>
