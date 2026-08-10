@@ -36,18 +36,22 @@
 
 <nav id="side-menu" class="side-menu hidden" aria-hidden="true">
   <button id="menu-new-game" class="side-menu__item">🧩 Nouvelle énigme</button>
-  <button id="menu-notes" class="side-menu__item">📝 Bloc-notes</button>
   <button id="menu-give-up" class="side-menu__item">🏳️ Voir la solution</button>
   <button id="menu-help" class="side-menu__item">❓ Aide</button>
+  <p class="side-menu__footer">Application non-officielle réalisée pour un usage strictement personnel, à
+  partir des cartes de vérification du jeu de plateau « Turing Machine » (Fabien Riffaud, Juliette
+  Saudemont — Le Scorpion Masqué). Tous droits sur le jeu original réservés à leurs propriétaires
+  respectifs.</p>
 </nav>
 <div id="overlay-backdrop" class="backdrop hidden"></div>
+<button id="btn-open-notes" class="notes-fab" aria-label="Ouvrir le bloc-notes" title="Bloc-notes">📝</button>
 
 <main>
   <div class="game-layout">
 
-    <div class="game-area game-area--left">
+    <section id="proposal-section" class="game-area game-area--left">
 
-      <section id="proposal-section">
+      <div class="proposal-sticky">
         <div class="proposal-row">
           <div class="value-picker">
             <span class="shape shape--b shape--lg"></span>
@@ -67,26 +71,21 @@
               <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
             </select>
           </div>
-        </div>
-        <div class="actions-row">
-          <button class="btn" id="btn-submit-guess">Soumettre le code final</button>
+          <button class="btn btn--submit" id="btn-submit-guess">Soumettre</button>
         </div>
         <div id="solved-banner" class="solved-banner hidden"></div>
-      </section>
+      </div>
 
-      <section id="history-section">
-        <div class="history-header">
-          <h2>Suivi de déduction</h2>
-          <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
-        </div>
-        <div id="history-list"></div>
-        <div id="assist-box" class="hidden"></div>
-      </section>
+      <div class="history-header">
+        <h2>Suivi de déduction</h2>
+        <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
+      </div>
+      <div id="history-list"></div>
+      <div id="assist-box" class="hidden"></div>
 
-    </div>
+    </section>
 
     <section id="cards-section" class="game-area game-area--cards">
-      <h2>Cartes de vérification actives</h2>
       <div id="cards-grid"></div>
     </section>
 
@@ -98,12 +97,6 @@
 
   </div>
 </main>
-
-<footer>
-  Application non-officielle réalisée pour un usage strictement personnel, à partir des cartes
-  de vérification du jeu de plateau « Turing Machine » (Fabien Riffaud, Juliette Saudemont —
-  Le Scorpion Masqué). Tous droits sur le jeu original réservés à leurs propriétaires respectifs.
-</footer>
 
 <!-- Popin : Nouvelle énigme -->
 <div id="modal-newgame" class="modal modal--fullpage hidden" role="dialog" aria-modal="true">
@@ -151,20 +144,21 @@
     énigme (jamais un critère faux).</p>
     <h3>Comment jouer</h3>
     <p>Chaque carte active est identifiée par une lettre (A à F selon le nombre de cartes en jeu). Choisis un
-    code avec les 3 sélecteurs, puis clique sur "Tester" sous une carte : comme son critère actif est toujours
+    code avec les 3 sélecteurs, puis clique sur "Tester" sur une carte : comme son critère actif est toujours
     vrai pour le code secret, un ✅ signifie que ton code reste compatible avec le secret, et un ❌ l'élimine
-    directement. Clique sur le "?" à côté d'une carte pour révéler son critère actif. Un même code peut être
-    testé sur plusieurs cartes (jusqu'à 3 maximum) ; une fois une carte testée pour ce code, son bouton
-    "Tester" se grise jusqu'à ce que tu choisisses un nouveau code. Quand tu es sûr du code secret, clique sur
-    "Soumettre le code final".</p>
+    directement. Le critère actif d'une carte reste secret et n'est révélé qu'une fois l'énigme résolue (ou
+    en demandant la solution). Un même code peut être testé sur plusieurs cartes (jusqu'à 3 maximum) ; une
+    fois une carte testée pour ce code, son bouton "Tester" se grise jusqu'à ce que tu choisisses un nouveau
+    code. Quand tu es sûr du code secret, clique sur "Soumettre".</p>
     <h3>Le suivi de déduction</h3>
     <p>Chaque ligne du tableau correspond à un code testé : les colonnes reprennent la lettre de chaque carte
     en jeu (✅/❌ selon le résultat obtenu), et la colonne 💡 trace tes soumissions de réponse finale (✅ en cas
     de succès, ❌ sinon).</p>
     <h3>Le bloc-notes</h3>
-    <p>Accessible depuis le menu, il propose une grille de chiffres pour chaque couleur : clique sur un
-    chiffre pour le barrer (éliminé) une première fois, l'entourer (validé) une deuxième fois, puis revenir à
-    l'état neutre. C'est un simple aide-mémoire personnel, il n'influence pas le jeu.</p>
+    <p>Accessible via le bouton latéral 📝 (ou toujours visible sur grand écran), il propose une grille de
+    chiffres pour chaque couleur : clique sur un chiffre pour le barrer (éliminé) une première fois,
+    l'entourer (validé) une deuxième fois, puis revenir à l'état neutre. C'est un simple aide-mémoire
+    personnel, il n'influence pas le jeu.</p>
     <h3>Le code d'énigme</h3>
     <p>Chaque énigme a un code alphanumérique unique, affiché en haut de l'écran. Clique dessus pour le
     copier, puis partage-le à quelqu'un d'autre (ou note-le) pour qu'il puisse charger exactement la même
@@ -176,6 +170,19 @@
     autorise les 48 cartes. La <strong>durée</strong> (Express / Court / Normal / Long) fixe le nombre de
     cartes actives dans l'énigme, de 3 à 6. Quels que soient ces réglages, l'énigme garantit toujours une
     solution unique parmi les 125 codes possibles, et aucune carte n'est superflue.</p>
+  </div>
+</div>
+
+<!-- Popin : confirmation avant soumission du code final -->
+<div id="modal-confirm-submit" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal__content modal__content--confirm">
+    <h2>Confirmer la soumission</h2>
+    <p>Es-tu sûr de vouloir soumettre ce code comme réponse finale ?</p>
+    <div id="confirm-code-display" class="confirm-code-display"></div>
+    <div class="actions-row">
+      <button class="btn btn--secondary" id="btn-cancel-submit">Annuler</button>
+      <button class="btn" id="btn-confirm-submit">Confirmer</button>
+    </div>
   </div>
 </div>
 

@@ -21,14 +21,21 @@
 html, body {
   margin: 0;
   padding: 0;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
 }
 
+/* L'app tient dans la hauteur de l'écran (pas de scroll de la page elle-même) :
+   chaque bloc (code+déductions / cartes / bloc-notes) défile de façon
+   autonome dans son propre panneau. */
 body {
-  padding-bottom: 40px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 button, input, select {
@@ -68,6 +75,7 @@ button, input, select {
 /* -------------------- Header & menu -------------------- */
 
 header.app-header {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -175,6 +183,45 @@ header.app-header {
   cursor: pointer;
 }
 
+/* Mentions légales, reléguées en bas du menu latéral (l'app n'a plus de
+   footer visible en permanence à l'écran). */
+.side-menu__footer {
+  margin-top: auto;
+  padding-top: 14px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: normal;
+}
+
+/* Bouton flottant permettant d'ouvrir le bloc-notes directement, sans
+   passer par le menu principal (utile surtout en mobile, où le bloc-notes
+   n'est pas une colonne toujours visible). */
+.notes-fab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 55;
+  background: var(--accent);
+  color: #06110d;
+  border: none;
+  border-radius: 10px 0 0 10px;
+  padding: 12px 8px;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: -3px 0 10px rgba(0,0,0,0.4);
+}
+
+@media (min-width: 980px) {
+  /* Le bloc-notes est déjà toujours visible en colonne sur grand écran :
+     le bouton flottant devient inutile. */
+  .notes-fab {
+    display: none;
+  }
+}
+
 .backdrop {
   position: fixed;
   inset: 0;
@@ -188,55 +235,68 @@ header.app-header {
 /* -------------------- Layout -------------------- */
 
 main {
+  flex: 1;
+  min-height: 0;
   max-width: 720px;
   margin: 0 auto;
   padding: 4px;
+  width: 100%;
+  display: flex;
 }
 
+/* Chaque bloc (code+déductions / cartes / bloc-notes) est un panneau
+   totalement autonome : hauteur contrainte au parent, défilement interne
+   propre, indépendant des autres blocs. */
 .game-layout {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     "left"
     "cards";
+  gap: 6px;
 }
 
-.game-area--left { grid-area: left; min-width: 0; }
-.game-area--cards { grid-area: cards; min-width: 0; }
+.game-area--left { grid-area: left; }
+.game-area--cards { grid-area: cards; }
+.game-area--left, .game-area--cards {
+  min-width: 0;
+  min-height: 0;
+  margin-bottom: 0;
+  overflow-y: auto;
+}
 
-/* Mobile portrait : le code proposé reste toujours visible, seul le reste
-   (suivi + cartes) défile en dessous. */
-@media (max-width: 679px) {
-  #proposal-section {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    box-shadow: 0 10px 14px -10px rgba(0,0,0,0.6);
-  }
+/* Le code proposé + le bouton de soumission restent épinglés en haut du
+   panneau "code & suivi", même quand le suivi de déduction défile en
+   dessous. */
+.proposal-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--panel);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  box-shadow: 0 10px 10px -8px rgba(0,0,0,0.5);
 }
 
 /* -------------------- Rendu paysage mobile + desktop : code & suivi à
-   gauche (colonne collante), cartes à droite (2 par ligne) -------------------- */
+   gauche, cartes à droite (2 par ligne), chaque colonne défilant seule
+   sur toute la hauteur disponible -------------------- */
 @media (min-width: 680px) {
   main {
     max-width: 1600px;
   }
   .game-layout {
-    display: grid;
     grid-template-columns: minmax(270px, 420px) minmax(0, 1fr);
+    grid-template-rows: 1fr;
     grid-template-areas: "left cards";
-    align-items: start;
     gap: 12px;
   }
-  #proposal-section {
-    position: static;
-    box-shadow: none;
-  }
-  .game-area--left {
-    position: sticky;
-    top: 10px;
-    max-height: calc(100vh - 20px);
-    overflow-y: auto;
+  .game-area--left, .game-area--cards {
+    height: 100%;
   }
 }
 
@@ -298,7 +358,7 @@ main {
     position: static;
     top: auto;
     right: auto;
-    height: auto;
+    height: 100%;
     width: auto;
     max-width: none;
     border-left: none;
@@ -308,6 +368,7 @@ main {
     padding: 10px;
     z-index: auto;
     transform: none;
+    overflow-y: auto;
   }
   /* Toujours visible sur desktop : plus spécifique que la règle générique
      ".hidden { display: none !important; }", elle l'emporte donc bien. */
@@ -315,11 +376,6 @@ main {
     display: block !important;
   }
   .notes-panel__close {
-    display: none;
-  }
-  /* Le bloc-notes est déjà toujours visible sur desktop : l'entrée de menu
-     dédiée (utile seulement pour ouvrir le volet mobile) devient inutile. */
-  #menu-notes {
     display: none;
   }
 }
@@ -461,10 +517,14 @@ section h2 {
 
 .proposal-row {
   display: flex;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
+}
+
+.btn--submit {
+  flex: none;
 }
 
 .value-picker {
@@ -563,48 +623,15 @@ section h2 {
 .card {
   background: var(--panel-2);
   border-radius: 10px;
-  padding: 8px;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.card__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.card__label {
-  flex: none;
-  font-size: 0.78rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.card__letter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #06110d;
-  font-family: var(--font-game);
-  font-weight: 800;
-  font-size: 0.78rem;
-  text-transform: none;
-  letter-spacing: normal;
-  vertical-align: middle;
 }
 
 .card__img-wrap {
   width: 100%;
-  border-radius: 8px;
   overflow: hidden;
   background: #0a0e14;
   line-height: 0;
@@ -616,25 +643,11 @@ section h2 {
   display: block;
 }
 
-.card__reveal-btn {
-  background: var(--panel);
-  color: var(--accent-2);
-  border: 1px solid var(--accent-2);
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  flex: none;
-  font-weight: bold;
-  font-size: 0.72rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-}
-
 .card__active {
   background: rgba(50, 182, 98, 0.1);
   border: 1px dashed rgba(50, 182, 98, 0.5);
   border-radius: 8px;
+  margin: 8px 8px 0;
   padding: 8px 10px;
   font-size: 0.85rem;
 }
@@ -648,31 +661,80 @@ section h2 {
   margin-bottom: 3px;
 }
 
+/* Le bouton "Tester" est intégré directement à la carte : une barre pleine
+   largeur en bas de la carte, sans marge, portant la lettre et le numéro de
+   la carte à gauche. */
 .card__test-btn {
-  flex: 1;
-  background: var(--panel);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  padding: 8px;
-  font-size: 0.8rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent);
+  color: #06110d;
+  border: none;
+  border-radius: 0;
+  padding: 10px 14px;
+  margin-top: auto;
+  font-size: 1rem;
   cursor: pointer;
-  font-family: var(--font-body);
+  font-family: var(--font-game);
 }
 
-.card__test-btn:active { transform: scale(0.98); }
+.card__test-btn__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.card__letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-family: var(--font-game);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.card__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-family: var(--font-game);
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.card__test-btn__label {
+  flex: 1;
+  text-align: center;
+  font-weight: 800;
+}
+
+.card__test-btn:active { filter: brightness(0.95); }
 
 .card__test-btn:disabled,
 .card__test-btn--disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+  background: var(--panel);
   color: var(--muted);
-  border-color: rgba(255,255,255,0.15);
+  cursor: not-allowed;
 }
 
-.card__test-btn:disabled:active,
-.card__test-btn--disabled:active {
-  transform: none;
+.card__test-btn:disabled .card__letter,
+.card__test-btn--disabled .card__letter,
+.card__test-btn:disabled .card__number,
+.card__test-btn--disabled .card__number {
+  background: rgba(255,255,255,0.08);
+  color: var(--muted);
 }
 
 .result-flash {
@@ -791,10 +853,11 @@ section h2 {
 .history-header__tests strong { color: var(--text); }
 
 footer {
+  flex: none;
   text-align: center;
   color: var(--muted);
-  font-size: 0.72rem;
-  padding: 10px 8px 30px;
+  font-size: 0.68rem;
+  padding: 6px 8px;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -924,6 +987,23 @@ footer {
   color: var(--ko);
   font-size: 0.82rem;
   margin-top: 8px;
+}
+
+/* -------------------- Popin : confirmation de soumission -------------------- */
+
+.modal__content--confirm {
+  max-width: 380px;
+  text-align: center;
+}
+
+.modal__content--confirm p {
+  text-align: center;
+}
+
+.confirm-code-display {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 6px;
 }
 
 /* -------------------- Popin : résultat d'un test -------------------- */

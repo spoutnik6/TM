@@ -212,7 +212,6 @@
     gaveUp: false,
     startedAt: null,
     assistMode: false,
-    revealed: new Set(), // familyId -> révélé
     notes: freshNotes(),
   };
 
@@ -243,6 +242,7 @@
     if (kind === "newgame") el("#modal-newgame").classList.remove("hidden");
     if (kind === "help") el("#modal-help").classList.remove("hidden");
     if (kind === "notes") el("#notes-panel").classList.remove("hidden");
+    if (kind === "confirmsubmit") el("#modal-confirm-submit").classList.remove("hidden");
   }
 
   function closeAllOverlays() {
@@ -251,6 +251,7 @@
     el("#modal-newgame").classList.add("hidden");
     el("#modal-help").classList.add("hidden");
     el("#notes-panel").classList.add("hidden");
+    el("#modal-confirm-submit").classList.add("hidden");
   }
 
   // ------------------------------------------------------------------------
@@ -290,11 +291,14 @@
     el("#puzzle-code").textContent = state.puzzleCode;
   }
 
+  // Le critère actif d'une carte n'est révélé qu'une fois l'énigme résolue
+  // (ou après avoir demandé la solution) — jamais à la demande, pour
+  // préserver le côté déductif du jeu.
   function renderCards() {
     const wrap = el("#cards-grid");
     wrap.innerHTML = "";
+    const revealed = state.solved || state.gaveUp;
     state.activeCards.forEach((ac) => {
-      const revealed = state.revealed.has(ac.family.id);
       const cardEl = document.createElement("div");
       cardEl.className = "card";
       cardEl.innerHTML = `
@@ -305,32 +309,26 @@
           <span class="card__active-label">Segment actif pour cette énigme</span>
           <strong>${ac.variant.label}</strong>
         </div>
-        <div class="card__row">
-          <span class="card__label">Carte <span class="card__letter">${ac.letter}</span></span>
-          <button class="card__test-btn" data-letter="${ac.letter}">Tester</button>
-          <button class="card__reveal-btn" data-reveal-id="${ac.family.id}" title="Révéler le critère actif" aria-label="Révéler le critère actif">?</button>
-        </div>
+        <button class="card__test-btn" data-letter="${ac.letter}">
+          <span class="card__test-btn__badges">
+            <span class="card__letter">${ac.letter}</span>
+            <span class="card__number">${ac.family.id}</span>
+          </span>
+          <span class="card__test-btn__label">Tester</span>
+        </button>
       `;
       wrap.appendChild(cardEl);
     });
     elAll(".card__test-btn").forEach((btn) => {
       btn.addEventListener("click", () => testCard(btn.dataset.letter));
     });
-    elAll(".card__reveal-btn").forEach((btn) => {
-      btn.addEventListener("click", () => toggleReveal(btn.dataset.revealId));
-    });
     updateCardButtonsState();
   }
 
-  function toggleReveal(familyId) {
-    const nowRevealed = !state.revealed.has(familyId);
-    if (nowRevealed) state.revealed.add(familyId);
-    else state.revealed.delete(familyId);
-
-    // Mise à jour ciblée (pas de re-rendu de toute la grille, pour éviter
-    // de recharger les images des autres cartes).
-    const activeBox = document.querySelector(`.card__active[data-active-id="${familyId}"]`);
-    if (activeBox) activeBox.classList.toggle("hidden", !nowRevealed);
+  // Dévoile le critère actif de toutes les cartes (énigme résolue ou
+  // solution demandée), sans recharger les images.
+  function revealAllActiveCards() {
+    elAll(".card__active").forEach((box) => box.classList.remove("hidden"));
   }
 
   function getProposedCode() {
@@ -391,6 +389,7 @@
     renderStatus();
     updateCardButtonsState();
     flashResult(ac, candidate, result);
+    saveState();
   }
 
   // Grise/dégrise les boutons "Tester" en fonction du code actuellement
@@ -519,6 +518,7 @@
     const next = NOTE_CYCLE[(NOTE_CYCLE.indexOf(current) + 1) % NOTE_CYCLE.length];
     state.notes[color][value] = next;
     renderNotes();
+    saveState();
   }
 
   // ------------------------------------------------------------------------
@@ -535,7 +535,6 @@
     state.solved = false;
     state.gaveUp = false;
     state.startedAt = Date.now();
-    state.revealed = new Set();
     state.notes = freshNotes();
 
     const banner = el("#solved-banner");
@@ -551,6 +550,7 @@
     renderAssist();
     renderStatus();
     renderNotes();
+    saveState();
   }
 
   function generateRandomPuzzle() {
@@ -589,6 +589,7 @@
       const seconds = Math.round((Date.now() - state.startedAt) / 1000);
       banner.className = "solved-banner solved-banner--win";
       banner.innerHTML = `🎉 Bravo ! Le code secret était bien ${codeDisplayHTML(state.secret)}.<br>Résolu en ${allTestCells().length} test(s) et ${seconds}s.`;
+      revealAllActiveCards();
     } else {
       // Ce message est transitoire : il disparaît dès qu'un nouveau test est
       // effectué ou que le code proposé est modifié (voir dismissTransientBanner).
@@ -598,6 +599,16 @@
     }
     banner.classList.remove("hidden");
     updateCardButtonsState();
+    saveState();
+  }
+
+  // Ouvre une popin de confirmation avant de soumettre le code proposé comme
+  // réponse finale, pour éviter qu'un simple mis-clic ne grille une tentative.
+  function openSubmitConfirm() {
+    if (state.solved || state.gaveUp) return;
+    const code = getProposedCode();
+    el("#confirm-code-display").innerHTML = codeDisplayHTML(code);
+    openOverlay("confirmsubmit");
   }
 
   // Fait disparaître le message d'échec de soumission dès qu'un nouveau test
@@ -618,7 +629,9 @@
     banner.className = "solved-banner solved-banner--lose";
     banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}. Nouvelle partie quand tu veux !`;
     banner.classList.remove("hidden");
+    revealAllActiveCards();
     updateCardButtonsState();
+    saveState();
   }
 
   async function copyPuzzleCode() {
@@ -642,6 +655,110 @@
   }
 
   // ------------------------------------------------------------------------
+  // Sauvegarde locale de la partie en cours (localStorage) : la partie
+  // reprend automatiquement telle quelle après fermeture/réouverture ou
+  // rechargement de la page ou de l'application.
+  // ------------------------------------------------------------------------
+  const STORAGE_KEY = "tm-web-savegame-v1";
+
+  function saveState() {
+    try {
+      const payload = {
+        difficulty: state.difficulty,
+        duration: state.duration,
+        puzzleCode: state.puzzleCode,
+        secret: state.secret,
+        activeCards: state.activeCards.map((ac) => ({
+          familyId: ac.family.id,
+          variantIndex: ac.family.variants.indexOf(ac.variant),
+          letter: ac.letter,
+        })),
+        rows: state.rows,
+        solved: state.solved,
+        gaveUp: state.gaveUp,
+        startedAt: state.startedAt,
+        assistMode: state.assistMode,
+        notes: state.notes,
+        proposedCode: getProposedCode(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      // Stockage indisponible (navigation privée, quota…) : on continue sans
+      // persistance, ce n'est pas bloquant pour jouer.
+    }
+  }
+
+  // Reconstruit une partie sauvegardée à partir de son JSON, en retrouvant
+  // les familles/variantes réelles (fonctions de test incluses) depuis
+  // cards.js à partir de leurs identifiants. Retourne false si rien à
+  // reprendre ou si la sauvegarde est invalide/corrompue.
+  function loadSavedState() {
+    let saved;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      saved = JSON.parse(raw);
+    } catch (e) {
+      return false;
+    }
+    try {
+      const activeCards = (saved.activeCards || []).map((sc) => {
+        const family = FAMILIES.find((f) => f.id === sc.familyId);
+        const variant = family && family.variants[sc.variantIndex];
+        if (!family || !variant) throw new Error("Carte sauvegardée introuvable");
+        return { family, variant, letter: sc.letter };
+      });
+      if (!activeCards.length || !saved.secret) throw new Error("Sauvegarde incomplète");
+
+      state.difficulty = saved.difficulty || state.difficulty;
+      state.duration = saved.duration || state.duration;
+      state.puzzleCode = saved.puzzleCode || "";
+      state.secret = saved.secret;
+      state.activeCards = activeCards;
+      state.rows = Array.isArray(saved.rows) ? saved.rows : [];
+      state.solved = !!saved.solved;
+      state.gaveUp = !!saved.gaveUp;
+      state.startedAt = saved.startedAt || Date.now();
+      state.assistMode = !!saved.assistMode;
+      state.notes = saved.notes || freshNotes();
+
+      renderPuzzleCode();
+      renderCards();
+      renderHistory();
+      renderAssist();
+      renderStatus();
+      renderNotes();
+      el("#chk-assist").checked = state.assistMode;
+
+      if (saved.proposedCode) {
+        el("#select-b").value = saved.proposedCode.b;
+        el("#select-y").value = saved.proposedCode.y;
+        el("#select-p").value = saved.proposedCode.p;
+      }
+
+      const banner = el("#solved-banner");
+      if (state.solved) {
+        const seconds = Math.round((Date.now() - state.startedAt) / 1000);
+        banner.className = "solved-banner solved-banner--win";
+        banner.innerHTML = `🎉 Bravo ! Le code secret était bien ${codeDisplayHTML(state.secret)}.<br>Résolu en ${allTestCells().length} test(s) et ${seconds}s.`;
+        banner.classList.remove("hidden");
+      } else if (state.gaveUp) {
+        banner.className = "solved-banner solved-banner--lose";
+        banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}. Nouvelle partie quand tu veux !`;
+        banner.classList.remove("hidden");
+      } else {
+        banner.classList.add("hidden");
+        delete banner.dataset.transient;
+      }
+
+      updateCardButtonsState();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ------------------------------------------------------------------------
   // Initialisation
   // ------------------------------------------------------------------------
   function init() {
@@ -661,10 +778,9 @@
       closeAllOverlays();
       openOverlay("help");
     });
-    el("#menu-notes").addEventListener("click", () => {
-      closeAllOverlays();
-      openOverlay("notes");
-    });
+    // Le bloc-notes s'ouvre directement via son propre bouton (volet latéral),
+    // sans passer par le menu principal.
+    el("#btn-open-notes").addEventListener("click", () => openOverlay("notes"));
     el("#overlay-backdrop").addEventListener("click", closeAllOverlays);
     elAll("[data-close]").forEach((btn) => btn.addEventListener("click", closeAllOverlays));
 
@@ -683,11 +799,17 @@
     });
 
     el("#puzzle-code").addEventListener("click", copyPuzzleCode);
-    el("#btn-submit-guess").addEventListener("click", submitGuess);
+    el("#btn-submit-guess").addEventListener("click", openSubmitConfirm);
+    el("#btn-cancel-submit").addEventListener("click", closeAllOverlays);
+    el("#btn-confirm-submit").addEventListener("click", () => {
+      closeAllOverlays();
+      submitGuess();
+    });
     ["#select-b", "#select-y", "#select-p"].forEach((sel) => {
       el(sel).addEventListener("change", () => {
         dismissTransientBanner();
         updateCardButtonsState();
+        saveState();
       });
     });
     el("#menu-give-up").addEventListener("click", () => {
@@ -697,10 +819,15 @@
     el("#chk-assist").addEventListener("change", (e) => {
       state.assistMode = e.target.checked;
       renderAssist();
+      saveState();
     });
     el("#chk-assist").checked = state.assistMode;
 
-    generateRandomPuzzle();
+    // Reprend la partie en cours (si elle existe) au lieu d'en générer une
+    // nouvelle à chaque ouverture/rechargement de la page ou de l'appli.
+    if (!loadSavedState()) {
+      generateRandomPuzzle();
+    }
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
