@@ -200,12 +200,12 @@ header.app-header {
 .notes-fab {
   position: fixed;
   right: 0;
-  top: 30px;
+  top: 28px;
   transform: translateY(-50%);
   z-index: 55;
-  background: #f9f9f9;
+  background: var(--panel-2);
   color: #06110d;
-  border: none;
+  border: 1px solid rgba(255,255,255,0.15);
   border-radius: 10px 0 0 10px;
   padding: 12px 8px;
   font-size: 1.15rem;
