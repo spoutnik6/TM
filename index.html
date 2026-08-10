@@ -27,10 +27,10 @@
   <button id="btn-menu" class="menu-btn" aria-label="Ouvrir le menu">
     <span></span><span></span><span></span>
   </button>
-  <button id="puzzle-code" class="puzzle-code" title="Cliquer pour copier le code de cette énigme">…</button>
   <div class="header-brand">
     <img src="assets/brand/logo-tm.png" class="header-logo" alt="Turing Machine" />
   </div>
+  <button id="puzzle-code" class="puzzle-code" title="Cliquer pour copier le code de cette énigme">…</button>
 </header>
 <span id="copy-confirm" class="copy-confirm hidden">Code copié !</span>
 
@@ -47,7 +47,7 @@
 <button id="btn-open-notes" class="notes-fab" aria-label="Ouvrir le bloc-notes" title="Bloc-notes">📝</button>
 
 <main>
-  <div class="game-layout">
+  <div id="code-section" class="game-layout">
 
     <section id="proposal-section" class="game-area game-area--left">
 
@@ -81,7 +81,6 @@
         <span class="history-header__tests">Tests : <strong id="stat-tests">0</strong></span>
       </div>
       <div id="history-list"></div>
-      <div id="assist-box" class="hidden"></div>
 
     </section>
 
@@ -101,27 +100,21 @@
 <div id="modal-newgame" class="modal modal--fullpage hidden" role="dialog" aria-modal="true">
   <div class="modal__content">
     <button class="modal__close" data-close="modal-newgame" aria-label="Fermer">✕</button>
-    <h2>Nouvelle énigme</h2>
-
     <h3>Générer une énigme aléatoire</h3>
 
-    <p class="muted">Difficulté (numéros de cartes autorisés).</p>
+    <p class="muted">Difficulté</p>
     <div id="difficulty-picker"></div>
 
-    <p class="muted" style="margin-top:14px;">Durée (nombre de cartes actives).</p>
+    <p class="muted" style="margin-top:14px;">Nombre de vérificateur</p>
     <div id="duration-picker"></div>
 
-    <label class="assist-toggle">
-      <input type="checkbox" id="chk-assist" /> Mode assisté (afficher le nombre de codes restants)
-    </label>
     <div class="actions-row">
-      <button class="btn" id="btn-generate-random">🔄 Générer une énigme aléatoire</button>
+      <button class="btn" id="btn-generate-random">Générer une nouvelle énigme</button>
     </div>
 
     <hr class="modal__sep" />
 
     <h3>Charger une énigme existante</h3>
-    <p class="muted">Entre le code d'une énigme partagée pour la rejouer à l'identique.</p>
     <div class="load-code-row">
       <input type="text" id="input-load-code" class="load-code-input" placeholder="ex. S5-0A1B2C3" autocapitalize="characters" />
       <button class="btn btn--secondary" id="btn-load-code">Charger</button>
@@ -148,7 +141,9 @@
     directement. Le critère actif d'une carte reste secret et n'est révélé qu'une fois l'énigme résolue (ou
     en demandant la solution). Un même code peut être testé sur plusieurs cartes (jusqu'à 3 maximum) ; une
     fois une carte testée pour ce code, son bouton "Tester" se grise jusqu'à ce que tu choisisses un nouveau
-    code. Quand tu es sûr du code secret, clique sur "Soumettre".</p>
+    code. Quand tu es sûr du code secret, clique sur "Soumettre". Tu peux aussi cliquer directement sur une
+    des possibilités imprimées sur le visuel d'une carte pour la barrer d'une croix rouge (et recliquer pour
+    l'effacer) : un simple aide-mémoire personnel pour noter les hypothèses que tu as éliminées.</p>
     <h3>Le suivi de déduction</h3>
     <p>Chaque ligne du tableau correspond à un code testé : les colonnes reprennent la lettre de chaque carte
     en jeu (✅/❌ selon le résultat obtenu), et la colonne 💡 trace tes soumissions de réponse finale (✅ en cas

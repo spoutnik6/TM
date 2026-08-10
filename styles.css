@@ -405,7 +405,7 @@ main {
   background: var(--panel-2);
   border: none;
   border-radius: 8px;
-  color: var(--accent);
+  color: var(--text);
   font-family: var(--font-game);
   font-weight: 700;
   font-size: 1.1rem;
@@ -418,7 +418,8 @@ main {
 }
 
 .notes-cell--eliminated {
-  color: var(--muted);
+  color: var(--ko);
+  background: none;
 }
 
 .notes-cell--eliminated::after {
@@ -433,8 +434,8 @@ main {
 }
 
 .notes-cell--confirmed {
-  color: var(--text);
-  box-shadow: inset 0 0 0 2px var(--text);
+  color: var(--ok);
+  box-shadow: inset 0 0 0 2px var(--ok);
   border-radius: 50%;
 }
 
@@ -480,15 +481,6 @@ section h2 {
   font-weight: bold;
 }
 
-.assist-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-  color: var(--muted);
-  margin-top: 12px;
-}
-
 .btn {
   background: var(--accent);
   color: #06110d;
@@ -531,6 +523,7 @@ section h2 {
 
 .btn--submit {
   flex: none;
+  margin-top: 32px;
 }
 
 .value-picker {
@@ -582,6 +575,29 @@ section h2 {
 
 .shape--lg { width: 26px; height: 26px; }
 .shape--sm { width: 11px; height: 11px; }
+
+/* Ecrans très étroits (ex. 320px) : resserre la ligne code + bouton "Soumettre"
+   pour qu'elle ne passe jamais à la ligne suivante. */
+@media (max-width: 400px) {
+  .proposal-row {
+    gap: 8px;
+  }
+
+  .btn--submit {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .value-select {
+    padding: 6px 7px;
+    font-size: 1.15rem;
+  }
+
+  .shape--lg {
+    width: 22px;
+    height: 22px;
+  }
+}
 
 /* -------------------- Code display (chiffres façon jeu) -------------------- */
 
@@ -753,19 +769,6 @@ section h2 {
   font-size: 0.8rem;
 }
 
-.card__number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.28);
-  color: #fff;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-family: var(--font-game);
-  font-weight: 700;
-  font-size: 0.75rem;
-}
-
 .card__test-btn__label {
   flex: 1;
   text-align: left;
@@ -781,9 +784,7 @@ section h2 {
 }
 
 .card__test-btn:disabled .card__letter,
-.card__test-btn--disabled .card__letter,
-.card__test-btn:disabled .card__number,
-.card__test-btn--disabled .card__number {
+.card__test-btn--disabled .card__letter {
   background: rgba(255,255,255,0.08);
   color: var(--muted);
 }
@@ -804,12 +805,6 @@ section h2 {
 .result-flash--ko { background: rgba(255, 107, 107, 0.15); color: var(--ko); }
 
 .hidden { display: none !important; }
-
-#assist-box {
-  margin-top: 10px;
-  font-size: 0.82rem;
-  color: var(--accent-2);
-}
 
 /* -------------------- History table (colonnes avec symboles) -------------------- */
 
@@ -882,6 +877,13 @@ section h2 {
   border: 1px solid var(--ko);
 }
 
+.solved-banner__estimate {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
 .history-header {
   display: flex;
   align-items: baseline;
@@ -936,7 +938,7 @@ footer {
   background: var(--panel);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 16px 16px 0 0;
-  padding: 24px 18px 26px;
+  padding: 16px 18px 16px;
   width: 100%;
   max-width: 560px;
   max-height: 88vh;
@@ -960,7 +962,6 @@ footer {
   height: 100%;
   height: 100dvh;
   border-radius: 0;
-  padding-top: 56px;
 }
 
 @media (min-width: 640px) {
@@ -1012,7 +1013,7 @@ footer {
 .modal__sep {
   border: none;
   border-top: 1px dashed rgba(255,255,255,0.15);
-  margin: 20px 0;
+  margin: 10px 0;
 }
 
 .load-code-row {

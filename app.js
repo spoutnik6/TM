@@ -254,7 +254,10 @@
     solved: false,
     gaveUp: false,
     startedAt: null,
-    assistMode: false,
+    // Temps de résolution (en secondes), figé au moment de la soumission
+    // gagnante — pour ne pas continuer à courir après coup si la partie est
+    // rechargée plus tard.
+    solveSeconds: null,
     notes: freshNotes(),
     // Croix rouges posées manuellement sur les variantes imprimées des
     // cartes actives, purement pour l'aide à la déduction personnelle —
@@ -326,7 +329,7 @@
     DURATIONS.forEach((d) => {
       const btn = document.createElement("button");
       btn.className = "chip" + (state.duration === d.id ? " chip--active" : "");
-      btn.textContent = `${d.label} (${d.cardCount} cartes)`;
+      btn.textContent = `${d.cardCount} cartes`;
       btn.addEventListener("click", () => {
         state.duration = d.id;
         renderDurationPicker();
@@ -393,7 +396,6 @@
         <button class="card__test-btn" data-letter="${ac.letter}">
           <span class="card__test-btn__badges">
             <span class="card__letter">${ac.letter}</span>
-            <span class="card__number">${ac.family.id}</span>
           </span>
           <span class="card__test-btn__label">Tester</span>
         </button>
@@ -442,9 +444,9 @@
   }
 
   // Liste à plat de tous les tests par carte effectués (toutes lignes
-  // confondues), utile pour les statistiques et le mode assisté. Les
-  // soumissions n'y figurent pas : elles ne renseignent pas sur un critère
-  // précis, seulement sur le code entier.
+  // confondues), utile pour les statistiques. Les soumissions n'y figurent
+  // pas : elles ne renseignent pas sur un critère précis, seulement sur le
+  // code entier.
   function allTestCells() {
     const cells = [];
     state.rows.forEach((row) => {
@@ -472,7 +474,6 @@
     row.cells[letter] = result;
     dismissTransientBanner();
     renderHistory();
-    renderAssist();
     renderStatus();
     updateCardButtonsState();
     flashResult(ac, candidate, result);
@@ -553,22 +554,6 @@
     wrap.appendChild(table);
   }
 
-  function renderAssist() {
-    const box = el("#assist-box");
-    if (!state.assistMode) {
-      box.classList.add("hidden");
-      return;
-    }
-    box.classList.remove("hidden");
-    let remaining = ALL_CODES;
-    const cells = allTestCells();
-    cells.forEach(({ letter, result }) => {
-      const ac = state.activeCards.find((a) => a.letter === letter);
-      remaining = remaining.filter((code) => ac.variant.test(code) === result);
-    });
-    box.innerHTML = `<strong>${remaining.length}</strong> code(s) restant(s) compatible(s) avec tes ${cells.length} test(s) (sur 125 au départ).`;
-  }
-
   function renderStatus() {
     el("#stat-tests").textContent = allTestCells().length;
   }
@@ -622,6 +607,7 @@
     state.solved = false;
     state.gaveUp = false;
     state.startedAt = Date.now();
+    state.solveSeconds = null;
     state.notes = freshNotes();
     state.crossedVariants = {};
 
@@ -635,7 +621,6 @@
     renderPuzzleCode();
     renderCards();
     renderHistory();
-    renderAssist();
     renderStatus();
     renderNotes();
     saveState();
@@ -660,6 +645,98 @@
     return true;
   }
 
+  // Formate une durée en secondes au format "m:ss" (ex. 125 -> "2:05").
+  function formatMMSS(totalSeconds) {
+    const s = Math.max(0, Math.round(totalSeconds || 0));
+    const m = Math.floor(s / 60);
+    const ss = String(s % 60).padStart(2, "0");
+    return `${m}:${ss}`;
+  }
+
+  // Nombre de codes distincts testés (une ligne "test" du suivi = un code
+  // distinct soumis à au moins une carte).
+  function countCodesTested() {
+    return state.rows.filter((r) => !("bulb" in r.cells)).length;
+  }
+  
+  function countSubmit() {
+    return state.rows.filter((r) => ("bulb" in r.cells)).length - 1;
+  }
+
+  // Estimation heuristique (glouton) du nombre minimum de "coups" — au sens
+  // demandé : (nombre de codes testés) + (nombre de tests unitaires) —
+  // nécessaires pour identifier avec certitude la variante active de
+  // chaque carte en jeu, et donc le code secret, sans jamais avoir à
+  // deviner. Ce n'est PAS une preuve mathématique du minimum absolu (le
+  // problème exact — trouver la stratégie garantie optimale — est un
+  // problème combinatoire coûteux, proche d'un solveur Mastermind) : c'est
+  // une approximation réaliste calculée en simulant, à chaque étape, le
+  // choix du code qui départage le mieux les hypothèses encore possibles
+  // parmi les variantes imprimées de chaque carte encore ambiguë (jusqu'à
+  // 3 cartes par code, comme dans le jeu).
+  function estimateMinMoves(activeCards) {
+    const remainingVariants = activeCards.map((ac) => ac.family.variants.slice());
+    let codesTested = 0;
+    let testsPerformed = 0;
+    let safety = 0;
+
+    while (remainingVariants.some((vs) => vs.length > 1) && safety < 60) {
+      safety++;
+      const ambiguousIdx = remainingVariants
+        .map((vs, i) => ({ i, len: vs.length }))
+        .filter((e) => e.len > 1)
+        .sort((a, b) => b.len - a.len)
+        .slice(0, MAX_TESTS_PER_CODE)
+        .map((e) => e.i);
+
+      if (ambiguousIdx.length === 0) break;
+
+      // Choisit, parmi les 125 codes possibles, celui qui réduit le plus le
+      // nombre total d'hypothèses restantes sur les cartes ambiguës visées.
+      let bestCode = null;
+      let bestScore = Infinity;
+      for (const code of ALL_CODES) {
+        let score = 0;
+        for (const idx of ambiguousIdx) {
+          const ac = activeCards[idx];
+          const result = ac.variant.test(code);
+          score += remainingVariants[idx].filter((v) => v.test(code) === result).length;
+        }
+        if (score < bestScore) {
+          bestScore = score;
+          bestCode = code;
+        }
+      }
+      if (!bestCode) break;
+
+      codesTested += 1;
+      ambiguousIdx.forEach((idx) => {
+        const ac = activeCards[idx];
+        const result = ac.variant.test(bestCode);
+        remainingVariants[idx] = remainingVariants[idx].filter((v) => v.test(bestCode) === result);
+        testsPerformed += 1;
+      });
+    }
+
+    return { moves: codesTested + testsPerformed, codes: codesTested, tests: testsPerformed };
+  }
+
+  // Construit le message affiché dans la bannière une fois l'énigme
+  // résolue : temps écoulé, nombre de codes testés / tests effectués, et
+  // une estimation du nombre minimum de coups théoriquement nécessaires.
+  function buildSolvedBannerHTML() {
+    const est = estimateMinMoves(state.activeCards);
+    return (
+      `🎉 Bravo ! Le code secret était bien ${codeDisplayHTML(state.secret)}<br><br>` +
+      `<div>Résolu en ${formatMMSS(state.solveSeconds)} `+ (countSubmit() ? ` <span class="result-flash--ko">dont <b>${valueAndText('erreur', countSubmit())} !</b></span>` : ``) + `<br/><b>${valueAndText('manche', countCodesTested())}  (` + Math.round(est.codes  / countCodesTested() * 100) +`%), ${valueAndText('test', allTestCells().length)} (` + Math.round(est.tests  / allTestCells().length * 100) +`%)</b></div>` +
+      `<br><span class="solved-banner__estimate">Minimum théorique estimé : ${valueAndText('manche', est.codes)}, ${valueAndText('test', est.tests)}.</span>`
+    );
+  }
+  
+  function valueAndText(mytext, value){
+	  return value + ' ' + mytext + (value > 1 ? 's' : '');
+  }
+
   function submitGuess() {
     if (state.solved || state.gaveUp) return;
     const guess = getProposedCode();
@@ -674,9 +751,9 @@
     if (success) {
       state.solved = true;
       delete banner.dataset.transient;
-      const seconds = Math.round((Date.now() - state.startedAt) / 1000);
+      state.solveSeconds = Math.round((Date.now() - state.startedAt) / 1000);
       banner.className = "solved-banner solved-banner--win";
-      banner.innerHTML = `🎉 Bravo ! Le code secret était bien ${codeDisplayHTML(state.secret)}.<br>Résolu en ${allTestCells().length} test(s) et ${seconds}s.`;
+      banner.innerHTML = buildSolvedBannerHTML();
       revealAllActiveCards();
     } else {
       // Ce message est transitoire : il disparaît dès qu'un nouveau test est
@@ -765,7 +842,7 @@
         solved: state.solved,
         gaveUp: state.gaveUp,
         startedAt: state.startedAt,
-        assistMode: state.assistMode,
+        solveSeconds: state.solveSeconds,
         notes: state.notes,
         crossedVariants: state.crossedVariants,
         proposedCode: getProposedCode(),
@@ -808,17 +885,23 @@
       state.solved = !!saved.solved;
       state.gaveUp = !!saved.gaveUp;
       state.startedAt = saved.startedAt || Date.now();
-      state.assistMode = !!saved.assistMode;
+      // Les sauvegardes antérieures à cette fonctionnalité n'ont pas de
+      // temps de résolution figé : on le calcule une seule fois ici (au
+      // pire), plutôt que de le laisser courir indéfiniment à chaque reprise.
+      state.solveSeconds =
+        typeof saved.solveSeconds === "number"
+          ? saved.solveSeconds
+          : state.solved
+          ? Math.round((Date.now() - state.startedAt) / 1000)
+          : null;
       state.notes = saved.notes || freshNotes();
       state.crossedVariants = saved.crossedVariants && typeof saved.crossedVariants === "object" ? saved.crossedVariants : {};
 
       renderPuzzleCode();
       renderCards();
       renderHistory();
-      renderAssist();
       renderStatus();
       renderNotes();
-      el("#chk-assist").checked = state.assistMode;
 
       if (saved.proposedCode) {
         el("#select-b").value = saved.proposedCode.b;
@@ -828,9 +911,8 @@
 
       const banner = el("#solved-banner");
       if (state.solved) {
-        const seconds = Math.round((Date.now() - state.startedAt) / 1000);
         banner.className = "solved-banner solved-banner--win";
-        banner.innerHTML = `🎉 Bravo ! Le code secret était bien ${codeDisplayHTML(state.secret)}.<br>Résolu en ${allTestCells().length} test(s) et ${seconds}s.`;
+        banner.innerHTML = buildSolvedBannerHTML();
         banner.classList.remove("hidden");
       } else if (state.gaveUp) {
         banner.className = "solved-banner solved-banner--lose";
@@ -906,12 +988,6 @@
       giveUp();
       closeAllOverlays();
     });
-    el("#chk-assist").addEventListener("change", (e) => {
-      state.assistMode = e.target.checked;
-      renderAssist();
-      saveState();
-    });
-    el("#chk-assist").checked = state.assistMode;
 
     // Reprend la partie en cours (si elle existe) au lieu d'en générer une
     // nouvelle à chaque ouverture/rechargement de la page ou de l'appli.
