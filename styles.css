@@ -239,6 +239,7 @@ main {
   min-height: 0;
   max-width: 720px;
   margin: 0 auto;
+  padding: 4px;
   width: 100%;
   display: flex;
 }
@@ -641,6 +642,7 @@ section h2 {
 }
 
 .card__img-wrap {
+  position: relative;
   width: 100%;
   overflow: hidden;
   background: #0a0e14;
@@ -651,6 +653,46 @@ section h2 {
   width: 100%;
   height: auto;
   display: block;
+}
+
+/* Zones cliquables superposées aux variantes imprimées sur le visuel de la
+   carte, pour poser une croix rouge manuelle d'élimination (aide-mémoire
+   personnel, sans effet sur le jeu). */
+.card__variant-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.card__variant-zone {
+  position: absolute;
+  cursor: pointer;
+}
+
+.card__variant-zone:hover {
+  background: rgba(255, 107, 107, 0.12);
+}
+
+.card__variant-cross {
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.card__variant-zone:hover .card__variant-cross {
+  opacity: 0.4;
+}
+
+.card__variant-zone--crossed .card__variant-cross,
+.card__variant-zone--crossed:hover .card__variant-cross {
+  opacity: 1;
+}
+
+.card__variant-cross line {
+  stroke: var(--ko);
+  stroke-width: 6;
+  stroke-linecap: round;
 }
 
 .card__active {
@@ -791,6 +833,9 @@ section h2 {
 @media (min-width: 480px) {
   .history-table {
     font-size: 0.85rem;
+  }
+  .history-table th, .history-table td {
+    padding: 8px 6px;
   }
 }
 

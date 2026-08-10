@@ -47,6 +47,49 @@
   }
 
   // ------------------------------------------------------------------------
+  // Repérage visuel des variantes imprimées sur chaque visuel de carte, pour
+  // pouvoir superposer une zone cliquable par variante (croix rouge
+  // d'élimination manuelle, purement personnelle — n'influence pas le jeu).
+  // Calibré par analyse d'image des 48 visuels réels : la zone des variantes
+  // occupe toujours la même bande verticale (39%-92% de la hauteur), divisée
+  // en une grille rows×cols dont l'ordre de remplissage (ligne ou colonne)
+  // correspond à l'ordre du tableau `variants` de chaque famille.
+  const VARIANT_BAND_TOP = 391 / 675;
+  const VARIANT_BAND_BOTTOM = 621 / 675;
+  const GRID_OVERRIDES = {
+    33: { rows: 2, cols: 3, order: "col" },
+    39: { rows: 2, cols: 3, order: "col" },
+    40: { rows: 3, cols: 3, order: "col" },
+    41: { rows: 3, cols: 3, order: "col" },
+    42: { rows: 2, cols: 3, order: "row" },
+    43: { rows: 2, cols: 3, order: "row" },
+    44: { rows: 2, cols: 3, order: "row" },
+    45: { rows: 2, cols: 4, order: "row" },
+    46: { rows: 2, cols: 4, order: "row" },
+    47: { rows: 2, cols: 4, order: "row" },
+    48: { rows: 3, cols: 3, order: "col" },
+  };
+
+  function gridFor(family) {
+    return GRID_OVERRIDES[parseInt(family.id, 10)] || { rows: 1, cols: family.variants.length, order: "row" };
+  }
+
+  // Rectangle (en % de l'image) occupé par la variante d'index `index`.
+  function variantCellRect(family, index) {
+    const { rows, cols, order } = gridFor(family);
+    const row = order === "col" ? index % rows : Math.floor(index / cols);
+    const col = order === "col" ? Math.floor(index / rows) : index % cols;
+    const cellW = 100 / cols;
+    const cellH = ((VARIANT_BAND_BOTTOM - VARIANT_BAND_TOP) * 100) / rows;
+    return {
+      left: col * cellW,
+      top: VARIANT_BAND_TOP * 100 + row * cellH,
+      width: cellW,
+      height: cellH,
+    };
+  }
+
+  // ------------------------------------------------------------------------
   // Générateur pseudo-aléatoire seedé (mulberry32) : permet de faire
   // correspondre un code alphanumérique d'énigme à une séquence de tirages
   // 100% reproductible, sur n'importe quel appareil.
@@ -213,6 +256,11 @@
     startedAt: null,
     assistMode: false,
     notes: freshNotes(),
+    // Croix rouges posées manuellement sur les variantes imprimées des
+    // cartes actives, purement pour l'aide à la déduction personnelle —
+    // clé `${familyId}:${variantIndex}` -> true. Remis à zéro à chaque
+    // nouvelle énigme (voir startPuzzle).
+    crossedVariants: {},
   };
 
   const el = (sel) => document.querySelector(sel);
@@ -291,6 +339,38 @@
     el("#puzzle-code").textContent = state.puzzleCode;
   }
 
+  // Zones cliquables superposées au visuel d'une carte, une par variante
+  // imprimée, pour permettre au joueur de poser une croix rouge manuelle sur
+  // celles qu'il a déduit être éliminées (pure aide-mémoire personnelle,
+  // n'influence jamais le jeu).
+  function variantZonesHTML(family) {
+    return family.variants
+      .map((_, index) => {
+        const rect = variantCellRect(family, index);
+        const key = `${family.id}:${index}`;
+        const crossedClass = state.crossedVariants[key] ? " card__variant-zone--crossed" : "";
+        return `
+          <div class="card__variant-zone${crossedClass}" data-family="${family.id}" data-index="${index}"
+               style="left:${rect.left}%;top:${rect.top}%;width:${rect.width}%;height:${rect.height}%;"
+               title="Marquer/démarquer cette possibilité comme éliminée">
+            <svg class="card__variant-cross" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <line x1="8" y1="8" x2="92" y2="92"></line>
+              <line x1="92" y1="8" x2="8" y2="92"></line>
+            </svg>
+          </div>`;
+      })
+      .join("");
+  }
+
+  function toggleVariantCross(familyId, index) {
+    const key = `${familyId}:${index}`;
+    if (state.crossedVariants[key]) delete state.crossedVariants[key];
+    else state.crossedVariants[key] = true;
+    const zone = document.querySelector(`.card__variant-zone[data-family="${familyId}"][data-index="${index}"]`);
+    if (zone) zone.classList.toggle("card__variant-zone--crossed", !!state.crossedVariants[key]);
+    saveState();
+  }
+
   // Le critère actif d'une carte n'est révélé qu'une fois l'énigme résolue
   // (ou après avoir demandé la solution) — jamais à la demande, pour
   // préserver le côté déductif du jeu.
@@ -304,14 +384,16 @@
       cardEl.innerHTML = `
         <div class="card__img-wrap">
           <img class="card__img" src="assets/cards/${ac.family.image}.webp" alt="Carte de vérification ${ac.letter}" loading="lazy" />
+          <div class="card__variant-overlay">${variantZonesHTML(ac.family)}</div>
         </div>
-        <div class="card__active ${revealed ? "" : "hidden"}">
+        <div class="card__active ${revealed ? "" : "hidden"}" data-active-id="${ac.family.id}">
           <span class="card__active-label">Segment actif pour cette énigme</span>
           <strong>${ac.variant.label}</strong>
         </div>
         <button class="card__test-btn" data-letter="${ac.letter}">
           <span class="card__test-btn__badges">
             <span class="card__letter">${ac.letter}</span>
+            <span class="card__number">${ac.family.id}</span>
           </span>
           <span class="card__test-btn__label">Tester</span>
         </button>
@@ -320,6 +402,12 @@
     });
     elAll(".card__test-btn").forEach((btn) => {
       btn.addEventListener("click", () => testCard(btn.dataset.letter));
+    });
+    elAll(".card__variant-zone").forEach((zone) => {
+      zone.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleVariantCross(zone.dataset.family, parseInt(zone.dataset.index, 10));
+      });
     });
     updateCardButtonsState();
   }
@@ -535,6 +623,7 @@
     state.gaveUp = false;
     state.startedAt = Date.now();
     state.notes = freshNotes();
+    state.crossedVariants = {};
 
     const banner = el("#solved-banner");
     banner.classList.add("hidden");
@@ -678,6 +767,7 @@
         startedAt: state.startedAt,
         assistMode: state.assistMode,
         notes: state.notes,
+        crossedVariants: state.crossedVariants,
         proposedCode: getProposedCode(),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -720,6 +810,7 @@
       state.startedAt = saved.startedAt || Date.now();
       state.assistMode = !!saved.assistMode;
       state.notes = saved.notes || freshNotes();
+      state.crossedVariants = saved.crossedVariants && typeof saved.crossedVariants === "object" ? saved.crossedVariants : {};
 
       renderPuzzleCode();
       renderCards();
