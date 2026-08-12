@@ -244,9 +244,13 @@ main {
   display: flex;
 }
 
-/* Chaque bloc (code+déductions / cartes / bloc-notes) est un panneau
-   totalement autonome : hauteur contrainte au parent, défilement interne
-   propre, indépendant des autres blocs. */
+/* Vue portrait (mobile, colonne unique) : les cartes de vérification
+   doivent TOUJOURS être entièrement visibles, sans jamais avoir à
+   scroller — c'est la ligne "cards" qui s'auto-dimensionne à son contenu
+   (grid-template-rows), tandis que le panneau "code & suivi" prend le
+   reste de la hauteur disponible. À l'intérieur de ce panneau, seul le
+   suivi de déduction (#history-list) défile ; le code proposé et le
+   bouton "Soumettre" restent toujours visibles au-dessus. */
 .game-layout {
   flex: 1;
   min-height: 0;
@@ -256,11 +260,12 @@ main {
   grid-template-areas:
     "left"
     "cards";
+  grid-template-rows: 1fr auto;
   gap: 6px;
 }
 
 .game-area--left { grid-area: left; }
-.game-area--cards { grid-area: cards; 
+.game-area--cards { grid-area: cards;
 	background: none;
 	border : none;
 	padding: 10px 3px;
@@ -269,25 +274,48 @@ main {
   min-width: 0;
   min-height: 0;
   margin-bottom: 0;
-  overflow-y: auto;
 }
 
-/* Le code proposé + le bouton de soumission restent épinglés en haut du
-   panneau "code & suivi", même quand le suivi de déduction défile en
-   dessous. */
+.game-area--left {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.game-area--cards {
+  overflow: visible;
+}
+
+/* Le code proposé + le bouton de soumission restent toujours visibles en
+   haut du panneau "code & suivi" (élément fixe de la colonne flex, hors de
+   la zone de défilement du suivi de déduction). */
 .proposal-sticky {
   position: sticky;
   top: 0;
   z-index: 5;
+  flex: none;
   background: var(--panel);
   padding-bottom: 8px;
   margin-bottom: 4px;
   box-shadow: 0 10px 10px -8px rgba(0,0,0,0.5);
 }
 
+.history-header {
+  flex: none;
+}
+
+/* Seul le suivi de déduction défile, en vue portrait. */
+#history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 /* -------------------- Rendu paysage mobile + desktop : code & suivi à
    gauche, cartes à droite (2 par ligne), chaque colonne défilant seule
-   sur toute la hauteur disponible -------------------- */
+   sur toute la hauteur disponible (comportement historique, inchangé —
+   la contrainte "cartes toujours visibles sans scroll" ne s'applique
+   qu'à la vue portrait ci-dessus). -------------------- */
 @media (min-width: 680px) {
   main {
     max-width: 1600px;
@@ -300,9 +328,18 @@ main {
   }
   .game-area--left, .game-area--cards {
     height: 100%;
+    overflow-y: auto;
+  }
+  .game-area--left {
+    display: block;
   }
   .game-area--cards {
 	padding: 10px 0px;
+  }
+  #history-list {
+    flex: none;
+    min-height: 0;
+    overflow-y: visible;
   }
 }
 
@@ -315,6 +352,60 @@ main {
   }
 }
 
+/* -------------------- Affichage récapitulatif une fois la partie terminée
+   (résolue ou solution demandée) : les panneaux "code & suivi" et "cartes"
+   n'ont plus de défilement interne — tout le suivi de déduction et toutes
+   les cartes actives restent visibles sans troncature, c'est alors la
+   page elle-même qui défile si besoin. Redevient normal (panneaux à
+   défilement indépendant) dès qu'une nouvelle énigme démarre. -------------------- */
+body.is-solved {
+  height: auto;
+  min-height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+body.is-solved .game-area--left,
+body.is-solved .game-area--cards {
+  overflow: visible;
+  height: auto;
+  max-height: none;
+}
+
+/* En vue portrait, seul #history-list défile normalement (pas tout le
+   panneau) — on neutralise aussi son défilement propre pour le
+   récapitulatif complet. Sans effet en vue paysage/desktop (où il n'a de
+   toute façon pas de défilement propre). */
+body.is-solved #history-list {
+  flex: none;
+  overflow-y: visible;
+  height: auto;
+  max-height: none;
+}
+
+body.is-solved .game-layout,
+body.is-solved main {
+  min-height: 0;
+}
+
+@media (min-width: 680px) {
+  /* Sans cela, la grille étire chaque colonne à la hauteur de la plus
+     grande (héritage du mode "panneaux pleine hauteur") ; en récapitulatif,
+     chaque colonne doit juste occuper sa propre hauteur de contenu. */
+  body.is-solved .game-layout {
+    align-items: start;
+  }
+}
+
+@media (max-width: 680px) {
+	body.is-solved .game-layout {
+	  grid-template-columns: 1fr;
+	  grid-template-rows: auto auto auto;
+	  grid-template-areas: "left" "cards" "notes";
+	  align-items: stretch;
+	  }
+}
+
 /* -------------------- Bloc-notes : volet mobile / colonne desktop -------------------- */
 
 .notes-panel {
@@ -322,12 +413,13 @@ main {
   top: 0;
   right: 0;
   height: 100%;
-  width: 230px;
+  width: 200px;
   max-width: 82vw;
   background: var(--panel);
   border-left: 1px solid rgba(255,255,255,0.1);
   z-index: 60;
   padding: 10px;
+  padding-right: 46px;
   overflow-y: auto;
   transform: translateX(100%);
   transition: transform 0.2s ease;
@@ -647,6 +739,16 @@ section h2 {
 	}
 }
 
+/* Mobile en paysage (écran large mais bas) : 3 colonnes pour que les
+   cartes restent assez petites pour qu'au moins 4 (en pratique les 6)
+   tiennent dans la hauteur sans avoir à scroller. */
+@media (min-width: 680px) and (max-height: 500px) {
+  #cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+}
+
 .card {
   background: var(--panel-2);
   border-radius: 10px;
@@ -887,13 +989,8 @@ section h2 {
 .history-header {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
-}
-
-.history-header h2 {
-  margin: 0;
+  margin-bottom: 6px;
 }
 
 .history-header__tests {

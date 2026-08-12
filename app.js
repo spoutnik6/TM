@@ -15,9 +15,10 @@
   // carte) ; la "durée" fixe le nombre de cartes actives dans l'énigme.
   // Les deux réglages sont indépendants et se combinent librement.
   const DIFFICULTIES = [
-    { id: "facile", label: "Facile", maxCardId: 20, char: "F" },
-    { id: "standard", label: "Standard", maxCardId: 33, char: "S" },
-    { id: "expert", label: "Expert", maxCardId: 48, char: "X" },
+    { id: "facile", label: "Facile", maxCardId: 20, minCardId: 1, char: "F" },
+    { id: "standard", label: "Standard", maxCardId: 35, minCardId: 1, char: "S" },
+    { id: "expert", label: "Expert", maxCardId: 48, minCardId: 10, char: "X" },
+    { id: "extremz", label: "Extrème", maxCardId: 48, minCardId: 25, char: "E" },
   ];
   const DURATIONS = [
     { id: "express", label: "Express", cardCount: 3, char: "3" },
@@ -159,7 +160,7 @@
   const POOL = flattenPool();
 
   function poolForDifficulty(diff) {
-    return POOL.filter((entry) => parseInt(entry.family.id, 10) <= diff.maxCardId);
+    return POOL.filter((entry) =>  parseInt(entry.family.id, 10) >= diff.minCardId && parseInt(entry.family.id, 10) <= diff.maxCardId);
   }
 
   function sampleActiveCards(pool, n, rng) {
@@ -418,6 +419,17 @@
   // solution demandée), sans recharger les images.
   function revealAllActiveCards() {
     elAll(".card__active").forEach((box) => box.classList.remove("hidden"));
+    updateSolvedViewClass();
+  }
+
+  // Une fois la partie terminée (résolue ou abandonnée), bascule vers un
+  // affichage "récapitulatif" sans défilement interne : le suivi de
+  // déduction complet et toutes les cartes actives restent visibles sans
+  // avoir à scroller dans des panneaux exigus (c'est alors la page entière
+  // qui défile si besoin). Revient à l'affichage normal (panneaux à
+  // défilement indépendant) dès qu'une nouvelle énigme démarre.
+  function updateSolvedViewClass() {
+    document.body.classList.toggle("is-solved", state.solved || state.gaveUp);
   }
 
   function getProposedCode() {
@@ -610,6 +622,7 @@
     state.solveSeconds = null;
     state.notes = freshNotes();
     state.crossedVariants = {};
+    updateSolvedViewClass();
 
     const banner = el("#solved-banner");
     banner.classList.add("hidden");
@@ -658,11 +671,11 @@
   function countCodesTested() {
     return state.rows.filter((r) => !("bulb" in r.cells)).length;
   }
-  
+
   function countSubmit() {
     return state.rows.filter((r) => ("bulb" in r.cells)).length - 1;
   }
-
+  
   // Estimation heuristique (glouton) du nombre minimum de "coups" — au sens
   // demandé : (nombre de codes testés) + (nombre de tests unitaires) —
   // nécessaires pour identifier avec certitude la variante active de
@@ -792,7 +805,7 @@
     state.gaveUp = true;
     const banner = el("#solved-banner");
     banner.className = "solved-banner solved-banner--lose";
-    banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}. Nouvelle partie quand tu veux !`;
+    banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}.<br>Nouvelle partie quand tu veux !`;
     banner.classList.remove("hidden");
     revealAllActiveCards();
     updateCardButtonsState();
@@ -896,6 +909,7 @@
           : null;
       state.notes = saved.notes || freshNotes();
       state.crossedVariants = saved.crossedVariants && typeof saved.crossedVariants === "object" ? saved.crossedVariants : {};
+      updateSolvedViewClass();
 
       renderPuzzleCode();
       renderCards();
@@ -916,7 +930,7 @@
         banner.classList.remove("hidden");
       } else if (state.gaveUp) {
         banner.className = "solved-banner solved-banner--lose";
-        banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}. Nouvelle partie quand tu veux !`;
+        banner.innerHTML = `Le code secret était ${codeDisplayHTML(state.secret)}.<br>Nouvelle partie quand tu veux !`;
         banner.classList.remove("hidden");
       } else {
         banner.classList.add("hidden");
